@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario - Gestión de Productos</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #f59e0b;
+            --danger-color: #ef4444;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-600: #4b5563;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--gray-100);
+            color: var(--gray-900);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: var(--gray-600);
+            font-size: 1.1rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--gray-900);
+        }
+        
+        .stat-value.warning {
+            color: var(--warning-color);
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+            align-items: start;
+        }
+        
+        .product-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.875rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .btn {
+            padding: 0.875rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3730a3;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-800);
+            margin-right: 0.5rem;
+        }
+        
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+        
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .products-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .section-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .filter-select {
+            padding: 0.5rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        .products-grid {
+            padding: 2rem;
+        }
+        
+        .product-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .product-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);
+        }
+        
+        .product-item.low-stock {
+            border-color: var(--warning-color);
+            background: #fef3c7;
+        }
+        
+        .product-info h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 0.25rem;
+        }
+        
+        .product-details {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+        
+        .stock-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .stock-ok {
+            background: #d1fae5;
+            color: var(--success-color);
+        }
+        
+        .stock-low {
+            background: #fef3c7;
+            color: var(--warning-color);
+        }
+        
+        .product-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--gray-600);
+        }
+        
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: var(--success-color);
+        }
+        
+        .notification.error {
+            background: var(--danger-color);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        .modal-content h3 {
+            margin-bottom: 1rem;
+            color: var(--gray-900);
+        }
+        
+        .modal-content p {
+            margin-bottom: 2rem;
+            color: var(--gray-600);
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-controls {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .product-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .product-details {
+                flex-direction: column;
+                gap: 0.5rem;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Gestión de Inventario</h1>
+            <p>Administra tus productos, controla el stock y recibe alertas automáticas</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Productos</h3>
+                <div class="stat-value" id="totalProducts">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Valor Total Inventario</h3>
+                <div class="stat-value" id="totalValue">$0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Stock Bajo</h3>
+                <div class="stat-value warning" id="lowStockCount">0</div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="products-section">
+                <div class="section-header">
+                    <h2 class="section-title">Productos</h2>
+                    <div class="filter-controls">
+                        <select class="filter-select" id="stockFilter">
+                            <option value="all">Todos los productos</option>
+                            <option value="low">Stock bajo</option>
+                            <option value="ok">Stock normal</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="products-grid" id="productsGrid">
+                    <div class="empty-state" id="emptyState">
+                        <div class="empty-icon">📦</div>
+                        <h3>No hay productos</h3>
+                        <p>Agrega tu primer producto para comenzar</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="product-form">
+                <h3 id="formTitle">Agregar Producto</h3>
+                <form id="productForm">
+                    <input type="hidden" id="productId">
+                    <div class="form-group">
+                        <label for="nombre">Nombre del Producto</label>
+                        <input type="text" id="nombre" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="precio">Precio ($)</label>
+                        <input type="number" id="precio" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="stock">Stock</label>
+                        <input type="number" id="stock" min="0" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        Agregar Producto
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="cancelBtn" style="display: none;">Cancelar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <h3>Confirmar Eliminación</h3>
+            <p>¿Estás seguro de que deseas eliminar este producto?</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
+                <button class="btn btn-danger" id="confirmDelete">Eliminar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const sb = window.supabase.createClient("https://ifbtcyxjccfhenxpzuge.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmYnRjeXhqY2NmaGVueHB6dWdlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODE1NzE3NSwiZXhwIjoyMDkzNzMzMTc1fQ.GVT3CveficB_D8WijOvKXhlpgiEbX8W8cmLSvhcbSeI");
+        let editingProduct = null;
+        let deleteProductId = null;
+        
+        // Elementos del DOM
+        const productForm = document.getElementById('productForm');
+        const productsGrid = document.getElementById('productsGrid');
+        const emptyState = document.getElementById('emptyState');
+        const stockFilter = document.getElementById('stockFilter');
+        const formTitle = document.getElementById('formTitle');
+        const submitBtn = document.getElementById('submitBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const deleteModal = document.getElementById('deleteModal');
+        const confirmDelete = document.getElementById('confirmDelete');
+        
+        // Estadísticas
+        const totalProducts = document.getElementById('totalProducts');
+        const totalValue = document.getElementById('totalValue');
+        const lowStockCount = document.getElementById('lowStockCount');
+        
+        async function loadProducts() {
+            try {
+                const { data, error } = await sb
+                    .from('productos')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                displayProducts(data || []);
+                updateStats(data || []);
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error al cargar productos', 'error');
+            }
+        }
+        
+        function displayProducts(products) {
+            const filter = stockFilter.value;
+            let filteredProducts = products;
+            
+            if (filter === 'low') {
+                filteredProducts = products.filter(p => p.stock <= 10);
+            } else if (filter === 'ok') {
+                filteredProducts = products.filter(p => p.stock > 10);
+            }
+            
+            if (filteredProducts.length === 0) {
+                productsGrid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📦</div>
+                        <h3>${filter === 'all' ? 'No hay productos' : 'No hay productos con este filtro'}</h3>
+                        <p>${filter === 'all' ? 'Agrega tu primer producto para comenzar' : 'Cambia el filtro para ver más productos'}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = filteredProducts.map(product => {
+                const isLowStock = product.stock <= 10;
+                const stockClass = isLowStock ? 'stock-low' : 'stock-ok';
+                const itemClass = isLowStock ? 'low-stock' : '';
+                
+                return `
+                    <div class="product-item ${itemClass}">
+                        <div class="product-info">
+                            <h4>${product.nombre}</h4>
+                            <div class="product-details">
+                                <span>Precio: $${parseFloat(product.precio).toFixed(2)}</span>
+                                <span class="stock-badge ${stockClass}">
+                                    ${product.stock} unidades ${isLowStock ? '⚠️' : ''}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="product-actions">
+                            <button class="btn btn-secondary" onclick="editProduct('${product.id}')">
+                                ✏️ Editar
+                            </button>
+                            <button class="btn btn-danger" onclick="showDeleteModal('${product.id}')">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            productsGrid.innerHTML = html;
+        }
+        
+        function updateStats(products) {
+            const total = products.length;
+            const totalVal = products.reduce((sum, p) => sum + (parseFloat(p.precio) * parseFloat(p.stock)), 0);
+            const lowStock = products.filter(p => p.stock <= 10).length;
+            
+            totalProducts.textContent = total;
+            totalValue.textContent = `$${totalVal.toFixed(2)}`;
+            lowStockCount.textContent = lowStock;
+        }
+        
+        async function editProduct(id) {
+            try {
+                const { data, error } = await sb
+                    .from('productos')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+                
+                if (error) throw error;
+                
+                editingProduct = data;
+                document.getElementById('productId').value = data.id;
+                document.getElementById('nombre').value = data.nombre;
+                document.getElementById('precio').value = data.precio;
+                document.getElementById('stock').value = data.stock;
+                
+                formTitle.textContent = 'Editar Producto';
+                submitBtn.textContent = 'Actualizar Producto';
+                cancelBtn.style.display = 'inline-block';
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error al cargar producto', 'error');
+            }
+        }
+        
+        function cancelEdit() {
+            editingProduct = null;
+            document.getElementById('productId').value = '';
+            productForm.reset();
+            formTitle.textContent = 'Agregar Producto';
+            submitBtn.textContent = 'Agregar Producto';
+            cancelBtn.style.display = 'none';
+        }
+        
+        function showDeleteModal(id) {
+            deleteProductId = id;
+            deleteModal.classList.add('show');
+        }
+        
+        function closeDeleteModal() {
+            deleteProductId = null;
+            deleteModal.classList.remove('show');
+        }
+        
+        async function deleteProduct() {
+            if (!deleteProductId) return;
+            
+            try {
+                const { error } = await sb
+                    .from('productos')
+                    .delete()
+                    .eq('id', deleteProductId);
+                
+                if (error) throw error;
+                
+                showNotification('Producto eliminado correctamente', 'success');
+                closeDeleteModal();
+                await loadProducts();
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error al eliminar producto', 'error');
+            }
+        }
+        
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+        
+        // Event Listeners
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const productData = {
+                nombre: formData.get('nombre'),
+                precio: parseFloat(formData.get('precio')),
+                stock: parseInt(formData.get('stock'))
+            };
+            
+            submitBtn.innerHTML = '<div class="loading"></div> Guardando...';
+            submitBtn.disabled = true;
+            
+            try {
+                if (editingProduct) {
+                    const { error } = await sb
+                        .from('productos')
+                        .update(productData)
+                        .eq('id', editingProduct.id);
+                    
+                    if (error) throw error;
+                    showNotification('Producto actualizado correctamente', 'success');
+                } else {
+                    const { error } = await sb
+                        .from('productos')
+                        .insert([productData]);
+                    
+                    if (error) throw error;
+                    showNotification('Producto agregado correctamente', 'success');
+                }
+                
+                cancelEdit();
+                await loadProducts();
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error al guardar producto', 'error');
+            } finally {
+                submitBtn.innerHTML = editingProduct ? 'Actualizar Producto' : 'Agregar Producto';
+                submitBtn.disabled = false;
+            }
+        });
+        
+        cancelBtn.addEventListener('click', cancelEdit);
+        
+        stockFilter.addEventListener('change', async () => {
+            const { data } = await sb.from('productos').select('*').order('created_at', { ascending: false });
+            displayProducts(data || []);
+        });
+        
+        confirmDelete.addEventListener('click', deleteProduct);
+        
+        // Cerrar modal al hacer clic fuera
+        deleteModal.addEventListener('click', (e) => {
+            if (e.target === deleteModal) {
+                closeDeleteModal();
+            }
+        });
+        
+        // Cargar datos iniciales
+        loadProducts();
+    </script>
+</body>
+</html>
